@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from pandas.core.algorithms import unique
 from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -18,6 +19,16 @@ mydb = mysql.connector.connect(
 
 mycursor = mydb.cursor()
 
+def ChangeString(text):
+    text = str(text)
+    list_of_keywords = []
+    list_of_keywords.append(text.lower())
+    list_of_keywords.append(text.upper())
+    list_of_keywords.append(text.title())
+    list_of_keywords.append(text.capitalize())
+
+    return list(set(list_of_keywords))
+
 # Create your views here.
 class ClinicalAPI(APIView):
 
@@ -27,22 +38,23 @@ class ClinicalAPI(APIView):
         search_type = request.data['search_type']
         search_keyword = request.data['search_keyword']
         user_id = request.data['user_id']
+
+        print(ChangeString(search_keyword))
         
 
         #Save data in database
-        sql = "INSERT INTO tbl_keywords (keyword, user_id) VALUES (%s, %s)"
-        val = (search_keyword, user_id)
+        sql = "INSERT INTO tbl_keywords (keyword, keyword_type, user_id) VALUES (%s, %s, %s)"
+        val = (search_keyword, search_type, user_id)
 
         mycursor.execute(sql, val)
-        mydb.commit()
 
         fields = "NCTId,Condition,ArmGroupDescription,InterventionType,BriefTitle,OrgFullName,OfficialTitle,BriefSummary,ReferencePMID,SecondaryOutcomeMeasure,PrimaryOutcomeMeasure,EligibilityCriteria,DetailedDescription,Phase,ArmGroupType,ArmGroupInterventionName,InterventionDescription,OverallStatus,StudyType,LastUpdatePostDate"
 
         url = 'https://clinicaltrials.gov/api/query/study_fields?'
         if search_type == 'both':
-            url = url + 'expr=' + search_type
+            url = url + 'expr=' + search_keyword
         else:
-            url = url + 'expr=' + search_type
+            url = url + 'expr=' + search_keyword
 
         url = url + '&fields=' + fields
         
@@ -124,17 +136,15 @@ class ClinicalAPI(APIView):
 
                 df = pd.DataFrame(studies_list)
                 df.columns = header
-                print(df.shape, "Before")
+                
                 if search_type == "search":
-                    df = df['Condition'].str.contains(search_keyword)
+                    df = df[df['Condition'].str.contains('|'.join(ChangeString(search_keyword))).any(level=0)]
                 elif search_type == "drug":
-                    df = df['ArmGroupInterventionName'].str.contains(search_keyword)
+                    df = df[df['ArmGroupInterventionName'].str.contains('|'.join(ChangeString(search_keyword))).any(level=0)]
                 elif search_type == "both":
-                    df = df['ArmGroupInterventionName'].str.contains(search_keyword)
-                    df = df["Condition"].str.contains(search_keyword)
+                    df = df[df['Condition'].str.contains('|'.join(ChangeString(search_keyword))).any(level=0)]
+                    df = df[df['ArmGroupInterventionName'].str.contains('|'.join(ChangeString(search_keyword))).any(level=0)]
 
-                print(df.shape, "After")
-                #df.to_csv("out.csv", index=False)
                 df_json = df.to_json(orient = 'records')
                 parsed = json.loads(df_json)
 
@@ -217,7 +227,7 @@ class ViewHistory(APIView):
         user_id = request.data["user_id"]
         
         print(user_id)
-        sql = "SELECT user_id, keyword, createddt FROM tbl_keywords WHERE user_id = %s"
+        sql = "SELECT user_id, keyword, keyword_type, createddt FROM tbl_keywords WHERE user_id = %s"
         val = (user_id, )
 
         mycursor.execute(sql, val)
