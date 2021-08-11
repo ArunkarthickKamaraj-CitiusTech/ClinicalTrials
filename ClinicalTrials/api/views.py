@@ -37,16 +37,16 @@ class ClinicalAPI(APIView):
 
         search_type = request.data['search_type']
         search_keyword = request.data['search_keyword']
-        user_id = request.data['user_id']
-
-        print(ChangeString(search_keyword))
-        
+        user_id = request.data['user_id']        
 
         #Save data in database
+        
         sql = "INSERT INTO tbl_keywords (keyword, keyword_type, user_id) VALUES (%s, %s, %s)"
         val = (search_keyword, search_type, user_id)
 
         mycursor.execute(sql, val)
+
+        mydb.commit()
 
         fields = "NCTId,Condition,ArmGroupDescription,InterventionType,BriefTitle,OrgFullName,OfficialTitle,BriefSummary,ReferencePMID,SecondaryOutcomeMeasure,PrimaryOutcomeMeasure,EligibilityCriteria,DetailedDescription,Phase,ArmGroupType,ArmGroupInterventionName,InterventionDescription,OverallStatus,StudyType,LastUpdatePostDate"
 
@@ -138,12 +138,12 @@ class ClinicalAPI(APIView):
                 df.columns = header
                 
                 if search_type == "search":
-                    df = df[df['Condition'].str.contains('|'.join(ChangeString(search_keyword))).any(level=0)]
+                    df = df[df['Condition'].str.contains('|'.join(ChangeString(search_keyword))).groupby(level=0).any()]
                 elif search_type == "drug":
-                    df = df[df['ArmGroupInterventionName'].str.contains('|'.join(ChangeString(search_keyword))).any(level=0)]
+                    df = df[df['ArmGroupInterventionName'].str.contains('|'.join(ChangeString(search_keyword))).groupby(level=0).any()]
                 elif search_type == "both":
-                    df = df[df['Condition'].str.contains('|'.join(ChangeString(search_keyword))).any(level=0)]
-                    df = df[df['ArmGroupInterventionName'].str.contains('|'.join(ChangeString(search_keyword))).any(level=0)]
+                    df = df[df['Condition'].str.contains('|'.join(ChangeString(search_keyword))).groupby(level=0).any()]
+                    df = df[df['ArmGroupInterventionName'].str.contains('|'.join(ChangeString(search_keyword))).groupby(level=0).any()]
 
                 df_json = df.to_json(orient = 'records')
                 parsed = json.loads(df_json)
