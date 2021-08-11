@@ -36,8 +36,6 @@ class ClinicalAPI(APIView):
         mycursor.execute(sql, val)
         mydb.commit()
 
-        mydb.close()
-
         fields = "NCTId,Condition,ArmGroupDescription,InterventionType,BriefTitle,OrgFullName,OfficialTitle,BriefSummary,ReferencePMID,SecondaryOutcomeMeasure,PrimaryOutcomeMeasure,EligibilityCriteria,DetailedDescription,Phase,ArmGroupType,ArmGroupInterventionName,InterventionDescription,OverallStatus,StudyType,LastUpdatePostDate"
 
         url = 'https://clinicaltrials.gov/api/query/study_fields?'
@@ -169,8 +167,6 @@ class ClinicalUser(APIView):
         df_json = df.to_json(orient = 'records')
         parsed = json.loads(df_json)
         
-        mydb.close()
-
 
         return Response(parsed, status=200)
     
@@ -196,8 +192,6 @@ class UserFavourites(APIView):
         df_json = df.to_json(orient = 'records')
         parsed = json.loads(df_json)
 
-        mydb.close()
-
         return Response(parsed, status=200)
 
 
@@ -214,7 +208,28 @@ class AddFavourites(APIView):
         mycursor.execute(sql, val)
         mydb.commit()
 
-        mydb.close()
-
         return Response("Favourite Added successfully", status=200)
 
+
+class ViewHistory(APIView):
+    def post(self, request, *args, **kwargs):
+
+        user_id = request.data["user_id"]
+        
+        print(user_id)
+        sql = "SELECT user_id, keyword, createddt FROM tbl_keywords WHERE user_id = %s"
+        val = (user_id, )
+
+        mycursor.execute(sql, val)
+
+        result = mycursor.fetchall()
+        print(result)
+
+        key_header = ["UserId", "Keyword", "CreatedAt"]
+        df = pd.DataFrame(result)
+        df.columns = key_header
+
+        df_json = df.to_json(orient = 'records')
+        parsed = json.loads(df_json)
+
+        return Response(parsed, status=200)
