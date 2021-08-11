@@ -235,7 +235,7 @@ class ViewHistory(APIView):
         result = mycursor.fetchall()
         print(result)
 
-        key_header = ["UserId", "Keyword", "CreatedAt"]
+        key_header = ["UserId", "Keyword", "KeywordType","CreatedAt"]
         df = pd.DataFrame(result)
         df.columns = key_header
 
